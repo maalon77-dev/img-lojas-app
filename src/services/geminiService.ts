@@ -85,7 +85,8 @@ const generateImageWithHuggingFace = async (prompt: string, width: number, heigh
 
     const blob = await response.blob();
     const arrayBuffer = await blob.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const base64 = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
     
     console.log('Imagem gerada com sucesso via Hugging Face!');
     return base64;
@@ -140,7 +141,8 @@ const generateImageWithReplicate = async (prompt: string, width: number, height:
       const imageResponse = await fetch(imageUrl);
       const blob = await imageResponse.blob();
       const arrayBuffer = await blob.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const base64 = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
       
       console.log('Imagem gerada com sucesso via Replicate!');
       return base64;
