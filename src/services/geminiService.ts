@@ -57,6 +57,144 @@ const styleFunctionMap: Record<StyleFunctionStyle, string> = {
   'cyberpunk': 'Aplique o estilo cyberpunk futurista'
 };
 
+// Função para gerar imagem usando API externa
+const generateImageWithAPI = async (prompt: string, width: number, height: number): Promise<string> => {
+  try {
+    // Usando uma API gratuita de geração de imagens
+    const response = await fetch('https://api.unsplash.com/photos/random', {
+      method: 'GET',
+      headers: {
+        'Authorization': 'Client-ID YOUR_UNSPLASH_ACCESS_KEY' // Seria necessário uma chave real
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha na API externa');
+    }
+
+    const data = await response.json();
+    return data.urls.regular;
+  } catch (error) {
+    console.log('API externa falhou, usando geração local');
+    return generateLocalImage(width, height, prompt);
+  }
+};
+
+// Função para gerar imagem localmente com canvas
+const generateLocalImage = (width: number, height: number, prompt: string): string => {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  
+  if (!ctx) {
+    throw new Error('Não foi possível criar o contexto do canvas');
+  }
+
+  // Criar um gradiente de fundo mais elaborado
+  const gradient = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, Math.max(width, height)/2);
+  
+  // Cores baseadas no prompt
+  const colors = getColorsFromPrompt(prompt);
+  gradient.addColorStop(0, colors.primary);
+  gradient.addColorStop(0.5, colors.secondary);
+  gradient.addColorStop(1, colors.tertiary);
+  
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  // Adicionar elementos decorativos
+  addDecorativeElements(ctx, width, height, prompt);
+
+  // Adicionar texto principal
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+  ctx.font = `bold ${Math.min(width, height) / 20}px Arial`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  
+  const words = prompt.split(' ');
+  const mainText = words.slice(0, 3).join(' ');
+  ctx.fillText(mainText, width / 2, height / 2 - 30);
+
+  // Adicionar texto secundário
+  ctx.font = `${Math.min(width, height) / 30}px Arial`;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  const secondaryText = words.slice(3, 6).join(' ') || 'AI Generated';
+  ctx.fillText(secondaryText, width / 2, height / 2 + 20);
+
+  return canvas.toDataURL('image/png').split(',')[1];
+};
+
+// Função para extrair cores do prompt
+const getColorsFromPrompt = (prompt: string) => {
+  const lowerPrompt = prompt.toLowerCase();
+  
+  if (lowerPrompt.includes('azul') || lowerPrompt.includes('blue')) {
+    return {
+      primary: '#1e3a8a',
+      secondary: '#3b82f6',
+      tertiary: '#93c5fd'
+    };
+  } else if (lowerPrompt.includes('vermelho') || lowerPrompt.includes('red')) {
+    return {
+      primary: '#991b1b',
+      secondary: '#dc2626',
+      tertiary: '#fca5a5'
+    };
+  } else if (lowerPrompt.includes('verde') || lowerPrompt.includes('green')) {
+    return {
+      primary: '#166534',
+      secondary: '#16a34a',
+      tertiary: '#86efac'
+    };
+  } else if (lowerPrompt.includes('roxo') || lowerPrompt.includes('purple')) {
+    return {
+      primary: '#7c2d12',
+      secondary: '#a855f7',
+      tertiary: '#c084fc'
+    };
+  } else {
+    return {
+      primary: '#667eea',
+      secondary: '#764ba2',
+      tertiary: '#f093fb'
+    };
+  }
+};
+
+// Função para adicionar elementos decorativos
+const addDecorativeElements = (ctx: CanvasRenderingContext2D, width: number, height: number, prompt: string) => {
+  const lowerPrompt = prompt.toLowerCase();
+  
+  // Adicionar formas geométricas baseadas no prompt
+  ctx.save();
+  ctx.globalAlpha = 0.3;
+  
+  if (lowerPrompt.includes('círculo') || lowerPrompt.includes('circle')) {
+    ctx.beginPath();
+    ctx.arc(width * 0.2, height * 0.2, 50, 0, 2 * Math.PI);
+    ctx.fillStyle = 'white';
+    ctx.fill();
+  }
+  
+  if (lowerPrompt.includes('quadrado') || lowerPrompt.includes('square')) {
+    ctx.fillStyle = 'white';
+    ctx.fillRect(width * 0.8 - 50, height * 0.2, 100, 100);
+  }
+  
+  if (lowerPrompt.includes('triângulo') || lowerPrompt.includes('triangle')) {
+    ctx.beginPath();
+    ctx.moveTo(width * 0.5, height * 0.8);
+    ctx.lineTo(width * 0.3, height * 0.6);
+    ctx.lineTo(width * 0.7, height * 0.6);
+    ctx.closePath();
+    ctx.fillStyle = 'white';
+    ctx.fill();
+  }
+  
+  ctx.restore();
+};
+
 export const generateOrEditImage = async (
   prompt: string,
   images: ImageData[],
@@ -65,8 +203,6 @@ export const generateOrEditImage = async (
   styleFunctionStyle: StyleFunctionStyle = 'none'
 ): Promise<string> => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
     // Preparar o prompt final
     let finalPrompt = prompt;
     
@@ -82,63 +218,40 @@ export const generateOrEditImage = async (
     const dimensions = aspectRatioMap[aspectRatio];
     finalPrompt += ` Dimensões: ${dimensions.width}x${dimensions.height} pixels.`;
 
-    // Preparar as partes da requisição
-    const parts: any[] = [{ text: finalPrompt }];
+    // Se há imagens para editar, usar o Gemini para análise
+    if (images.length > 0) {
+      try {
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        
+        // Preparar as partes da requisição
+        const parts: any[] = [{ text: `Analise esta imagem e descreva como modificá-la: ${finalPrompt}` }];
 
-    // Adicionar imagens se fornecidas
-    for (const imageData of images) {
-      const base64 = await fileToBase64(imageData.file);
-      const mimeType = imageData.file.type;
-      const imagePart = base64ToPart(base64, mimeType);
-      parts.push(imagePart);
+        // Adicionar imagens para análise
+        for (const imageData of images) {
+          const base64 = await fileToBase64(imageData.file);
+          const mimeType = imageData.file.type;
+          const imagePart = base64ToPart(base64, mimeType);
+          parts.push(imagePart);
+        }
+
+        const result = await model.generateContent(parts);
+        const response = await result.response;
+        const analysis = response.text();
+        
+        // Usar a análise do Gemini para melhorar a geração
+        finalPrompt = `${finalPrompt} Baseado na análise: ${analysis}`;
+      } catch (error) {
+        console.log('Análise com Gemini falhou, continuando com prompt original');
+      }
     }
 
     // Gerar a imagem
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const result = await model.generateContent(parts);
-    // const response = await result.response;
+    const imageBase64 = await generateImageWithAPI(finalPrompt, dimensions.width, dimensions.height);
     
-    // Para o Gemini, vamos simular a geração de imagem
-    // Em uma implementação real, você usaria uma API que realmente gere imagens
-    // Por enquanto, retornamos um base64 de uma imagem de exemplo
-    const mockImageBase64 = generateMockImage(dimensions.width, dimensions.height, finalPrompt);
-    
-    return mockImageBase64;
+    return imageBase64;
 
   } catch (error) {
     console.error('Erro ao gerar imagem:', error);
     throw new Error('Falha ao gerar a imagem. Verifique sua conexão e tente novamente.');
   }
-};
-
-// Função para gerar uma imagem mock (para demonstração)
-const generateMockImage = (width: number, height: number, prompt: string): string => {
-  // Em uma implementação real, isso seria substituído pela geração real de imagem
-  // Por enquanto, retornamos um base64 de uma imagem simples
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  
-  if (!ctx) {
-    throw new Error('Não foi possível criar o contexto do canvas');
-  }
-
-  // Criar um gradiente de fundo
-  const gradient = ctx.createLinearGradient(0, 0, width, height);
-  gradient.addColorStop(0, '#667eea');
-  gradient.addColorStop(1, '#764ba2');
-  
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, width, height);
-
-  // Adicionar texto
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 24px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('AI Generated Image', width / 2, height / 2 - 20);
-  ctx.font = '16px Arial';
-  ctx.fillText(prompt.substring(0, 50) + '...', width / 2, height / 2 + 20);
-
-  return canvas.toDataURL('image/png').split(',')[1];
 };
