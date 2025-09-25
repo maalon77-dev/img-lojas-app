@@ -63,6 +63,7 @@ const generateImageWithFreeAPI = async (prompt: string, width: number, height: n
     console.log('Tentando gerar imagem com API gratuita...');
     
     // Usando uma API gratuita que realmente funciona
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const response = await fetch('https://api.pexels.com/v1/search', {
       method: 'GET',
       headers: {
