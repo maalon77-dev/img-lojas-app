@@ -1,6 +1,14 @@
-# AI Image Studio Builder - Invente com IA Edition
+# 🎨 AI Image Studio Builder - Invente com IA Edition
 
-Um estúdio completo de criação de imagens com inteligência artificial, construído com React e TypeScript.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/maalon77-dev/img-lojas-app)
+
+Um estúdio completo de criação de imagens com inteligência artificial, construído com React e TypeScript. Sistema profissional para criação e edição de imagens usando Google Gemini AI.
+
+## 🌟 Demo
+
+🚀 **Acesse a aplicação**: [Deploy no Vercel](https://img-lojas-app.vercel.app)
+
+## 📋 Funcionalidades Principais
 
 ## 🚀 Funcionalidades
 
